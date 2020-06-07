@@ -5,8 +5,8 @@ from datetime import datetime as dt
 from bs4 import BeautifulSoup
 import re
 import lxml.html
-
 import url_marker
+import csv
 
 
 #create a request
@@ -28,7 +28,10 @@ def get_threads(key: str, default='NaN'):
 
 def find_urls(com):
     urls = re.findall(url_marker.WEB_URL_REGEX, com)
-    return urls
+    if len(urls)>0:
+        return urls
+    else:
+        return None
 
 def handle_com(com):
     com = re.sub('<br><br>', '\n', com)
@@ -38,63 +41,87 @@ def handle_com(com):
     com = re.sub('<wbr>', '', com)
     com = re.sub('&#039;', "'", com)
     com = re.sub('&quot;', '"', com)
+    com = re.sub(r'<a.+?</a>', '[REPLY]', com)
     return com
 
-for threads in gen_chan():
 
-    #thread
-    no = get_threads('no')
+now = dt.now()
 
-    #now
-    now = get_threads('now')
-    
-    #post time
-    time = get_threads('time')
+#UGLY SUBJECT TO CHANGE
+date = str(now.year)+'-'+str(now.month)+'-'+str(now.day)+'_'+str(now.hour)+'-'+str(now.minute)
+with open('dataset/pol_'+date+'.csv', mode='w') as csv_file:
 
-    #my time 
-    my_time = dt.today()
+    fieldnames = ['thread_num', 'post_time', 'id', 'country', 'com', 'filename', 'url']
+    writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+    writer.writeheader()
 
-    #post text
-    #com = BeautifulSoup(get_threads('com')).getText()
-    #com = handle_com(BeautifulSoup(get_threads('com')).getText())
-    #com = BeautifulSoup(get_threads('com'), 'lxml').getText()
-    com = handle_com(get_threads('com'))
-    
+    for threads in gen_chan():
 
-    #post name
-    name = get_threads('name')
+        #thread
+        no = get_threads('no')
 
-    #tripcode
-    trip = get_threads('trip')
+        #now
+        now = get_threads('now')
+        
+        #post time
+        time = get_threads('time')
 
-    #id
-    ids = get_threads('ids')
+        #my time 
+        my_time = dt.today()
 
-    #capcode?
-    capcode = get_threads('capcode')
+        #post text
+        com = handle_com(get_threads('com'))
+        
+        #post name
+        name = get_threads('name')
 
-    #filename 
-    filename = get_threads('filename')
+        #tripcode
+        trip = get_threads('trip')
 
-    #resto
-    rest = get_threads('resto')
-    
-    #semantic_url
-    semantic_url = get_threads('semantic_url')
+        #id
+        ids = get_threads('id')
 
-    #replies
-    replies = get_threads('replies')
+        #capcode?
+        capcode = get_threads('capcode')
 
-    #images
-    images = get_threads('images')
+        #filename 
+        filename = get_threads('filename')
 
-    #url - need to remake this one probably
-    url = find_urls(com)
+        #resto
+        rest = get_threads('resto')
+        
+        #semantic_url
+        semantic_url = get_threads('semantic_url')
 
+        #replies
+        replies = get_threads('replies')
 
-    print("Thread : ", no)
-    print("TripCode : ", trip)
-    print("Capcode: ", capcode)
-    print(com)
-    print(url)
-    print('\n')
+        #images
+        images = get_threads('images')
+
+        #url - need to remake this one probably
+        url = find_urls(com)
+
+        #country
+        country = get_threads('country_name')
+
+        writer.writerow({'thread_num': no, 'post_time': time, 'id': ids, 'country': country, 'com': com, 'filename': filename, 'url': url})
+
+        if 'last_replies' in threads:
+            for comment in threads['last_replies']:
+
+                com = handle_com(comment.get('com', 'NaN'))
+
+                ids = comment.get('id', 'NaN')
+                
+                country = comment.get('country_name', 'NaN')
+
+                time = comment.get('time', 'NaN')
+
+                filename_com = comment.get('filename', 'NaN') + comment.get('ext', 'NaN')
+                
+                url = find_urls(com)
+                
+                writer.writerow({'thread_num': no, 'post_time': time, 'id': ids, 'country': country, 'com': com, 'filename': filename, 'url': url})
+
+print("Done saving")
