@@ -3,6 +3,10 @@ import numpy as np
 import pandas
 import matplotlib.pyplot as plt
 
+#this module is not complete
+#currently outputs statistics:
+#poster country of origin
+
 df = pandas.read_csv('dataset/pol_2020-6-6_19-19.csv', index_col='thread_num')
 
 #countries = np.squeeze(df[['country']].to_numpy())

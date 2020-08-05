@@ -1,10 +1,18 @@
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 import re
-import numpy as np
-import pandas as pd
 from pprint import pprint
 
+#enable logging for gensim
+import logging
+logging.basicConfig(format='%(acstime)s : %(levelname)s : %(message)s', level=logging.ERROR)
+
+import numpy as np
+import pandas as pd
+
 #gensim
-import gensim 
+import gensim
 import gensim.corpora as corpora
 from gensim.utils import simple_preprocess
 from gensim.models import CoherenceModel
@@ -12,51 +20,89 @@ from gensim.models import CoherenceModel
 #spacy for lemmatiziation
 import spacy
 
-#plotting 
+#plotting
 import pyLDAvis
 import pyLDAvis.gensim
 import matplotlib.pyplot as plt
-
-#enable logging for gensim
-import logging
-logging.basicConfig(format = '%(acstime)s : %(levelname)s : %(message)s', level = logging.ERROR)
-
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 #NLTK stop words
 from nltk.corpus import stopwords
 stop_words = stopwords.words('english')
 stop_words.extend(['[REPLY]', 'kek', 'lol', 'reply'])
 
-#splitting sentences in words
 def sent_to_words(sentences):
+    """Function to split complete sentences into words
+
+    Args:
+        sentences (list): all scentences in a list
+    """
     for sentence in sentences:
         #deacc removes punctuation
-        yield(gensim.utils.simple_preprocess(str(sentence), deacc=True))
+        yield gensim.utils.simple_preprocess(str(sentence), deacc=True)
 
 #remove stopwords
 def remove_stopwords(texts):
+    """Function for removing the stopwords from the text
+
+    Args:
+        texts (str): given text in a string form
+
+    Returns:
+        str: stripped text without stopwords
+    """
     return [[word for word in simple_preprocess(str(doc)) if word not in stop_words] for doc in texts]
 
-#make bigrams
 def make_bigrams(texts):
+    """Function for creating bigrams
+
+    Args:
+        texts (str): given text
+
+    Returns:
+        [type]: bigrams
+    """
     return [bigram_mod[doc] for doc in texts]
 
 #make trigrams
 def make_trigrams(texts):
+    """Makes trigrams
+
+    Args:
+        texts (str): given text
+
+    Returns:
+        [type]: trigrams
+    """
     return [trigram_mod[bigram_mod[doc]] for doc in texts]
 
-#lemmatization function
 def lemmatization(texts, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV']):
+    """Lemmatization function
+
+    Args:
+        texts (str): given text
+        allowed_postags (list, optional): Defaults to ['NOUN', 'ADJ', 'VERB', 'ADV'].
+
+    Returns:
+        str : lemmatized text
+    """
     texts_out = []
     for sent in texts:
         doc = nlp(" ".join(sent))
         texts_out.append([token.lemma_ for token in doc if token.pos_ in allowed_postags])
     return texts_out
 
-#function used to convert mallet model to LDA
+
 def convertLdaMalletToGen(mallet_model, gamma_threshold=0.001, iterations=50):
+    """Function for convertion mallet model to LDA
+
+    Args:
+        mallet_model : mallet type model
+        gamma_threshold (float, optional): Defaults to 0.001.
+        iterations (int, optional): Defaults to 50.
+
+    Returns:
+        model : LDA model
+    """
     print("Converting mallet model to LDA model")
     model_gensim = gensim.models.ldamodel.LdaModel(
         id2word=mallet_model.id2word, num_topics=mallet_model.num_topics,
@@ -73,9 +119,10 @@ def convertLdaMalletToGen(mallet_model, gamma_threshold=0.001, iterations=50):
 
 #LDA considers each document as a collection of different topics. Each topic is a collection of keywords.
 
-#loading the pol Dataset
+#loading the dataset
 print("Loading data")
-df = pd.read_csv('dataset/pol_2020-6-6_19-19.csv', index_col='thread_num')
+#df = pd.read_csv('dataset/pol_2020-6-6_19-19.csv', index_col='thread_num')
+df = pd.read_csv('dataset/tv_2020-7-23_11-43.csv', index_col='thread_num')
 
 #converting messages to list
 data = df.com.values.tolist()
@@ -153,7 +200,10 @@ print("Computing perplexity")
 print('\nPerplexity: ', lda_model.log_perplexity(corpus))
 
 print("Computing coherence score")
-coherence_model_lda = CoherenceModel(model=lda_model, texts=data_lemmatized, dictionary=id2word, coherence='c_v')
+coherence_model_lda = CoherenceModel(model=lda_model,
+                                     texts=data_lemmatized,
+                                     dictionary=id2word,
+                                     coherence='c_v')
 coherence_lda = coherence_model_lda.get_coherence()
 print('\nCoherence score: ', coherence_lda)
 
@@ -167,13 +217,20 @@ pyLDAvis.save_html(vis, 'LDA_Visualization.html')
 #Checking mallet LDA
 print("Loading Mallet LDA")
 mallet_path = '/home/alex/Projects/miscProjects/ChanGuard/mallet-2.0.8/bin/mallet'
-ldamallet = gensim.models.wrappers.LdaMallet(mallet_path, corpus=corpus, num_topics=20, id2word=id2word)
+ldamallet = gensim.models.wrappers.LdaMallet(mallet_path,
+                                             corpus=corpus,
+                                             num_topics=20,
+                                             id2word=id2word)
 
 #Show topics
 pprint(ldamallet.show_topics(formatted=False))
 
 #computing mallet coherence score
-coherence_model_ldamallet = CoherenceModel(model=ldamallet, texts=data_lemmatized, dictionary=id2word, coherence='c_v')
+coherence_model_ldamallet = CoherenceModel(model=ldamallet,
+                                           texts=data_lemmatized,
+                                           dictionary=id2word,
+                                           coherence='c_v')
+
 coherence_lda_mallet = coherence_model_ldamallet.get_coherence()
 
 print('\nCoherence score for LDA-Mallet: ', coherence_lda_mallet)
