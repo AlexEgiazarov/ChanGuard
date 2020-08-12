@@ -7,11 +7,8 @@ from bs4 import BeautifulSoup
 import lxml.html
 import requests
 import url_marker
+import time
 
-#create a request
-#r = requests.get('https://a.4cdn.org/pol/catalog.json')
-r = requests.get('https://a.4cdn.org/tv/catalog.json')
-r = r.json()
 
 #pprint(r)
 #for items in r:
@@ -74,88 +71,114 @@ def handle_com(com):
     com = re.sub(r'<a.+?</a>', '[REPLY]', com)
     return com
 
-#getting a date 
-now = dt.now()
 
-#UGLY SUBJECT TO CHANGE
-date = str(now.year)+'-'+str(now.month)+'-'+str(now.day)+'_'+str(now.hour)+'-'+str(now.minute)
+def cycle_collector(board_name):
+    """Function that takes snapshot of the board and logs data in dataframe
 
-#open and save threads into the csv file
-#with open('dataset/pol_'+date+'.csv', mode='w') as csv_file:
-with open('dataset/tv_'+date+'.csv', mode='w') as csv_file:
+    Args:
+        board_name (str): board to log
+    """
 
-    #create field names
-    fieldnames = ['thread_num', 'post_time', 'id', 'country', 'com', 'filename', 'url']
-    writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-    writer.writeheader()
+    #create a request
+    r = requests.get(board_name)
+    #r = requests.get('https://a.4cdn.org/tv/catalog.json')
+    r = r.json()
 
-    #for each thread on the board
-    for threads in gen_chan():
+    #getting a date
+    now = dt.now()
 
-        #thread
-        no = get_threads('no')
-        #now
-        now = get_threads('now')
-        #post time
-        time = get_threads('time')
-        #my time
-        my_time = dt.today()
-        #post text
-        com = handle_com(get_threads('com'))
-        #post name
-        name = get_threads('name')
-        #tripcode
-        trip = get_threads('trip')
-        #id
-        ids = get_threads('id')
-        #capcode?
-        capcode = get_threads('capcode')
-        #filename
-        filename = get_threads('filename')
-        #resto
-        rest = get_threads('resto')
-        #semantic_url
-        semantic_url = get_threads('semantic_url')
-        #replies
-        replies = get_threads('replies')
-        #images
-        images = get_threads('images')
-        #url - need to remake this one probably
-        url = find_urls(com)
-        #country
-        country = get_threads('country_name')
+    #UGLY SUBJECT TO CHANGE
+    date = str(now.year)+'-'+str(now.month)+'-'+str(now.day)+'_'+str(now.hour)+'-'+str(now.minute)
 
-        writer.writerow({'thread_num': no,
-                         'post_time': time,
-                         'id': ids,
-                         'country': country,
-                         'com': com,
-                         'filename': filename,
-                         'url': url})
+    #open and save threads into the csv file
+    with open('dataset/pol_'+date+'.csv', mode='w') as csv_file:
+    #with open('dataset/tv_'+date+'.csv', mode='w') as csv_file:
 
-        #write all thread replies
-        if 'last_replies' in threads:
-            for comment in threads['last_replies']:
+        #create field names
+        fieldnames = ['thread_num', 'post_time', 'id', 'country', 'com', 'filename', 'url']
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
 
-                #comment
-                com = handle_com(comment.get('com', 'NaN'))
-                #poster id
-                ids = comment.get('id', 'NaN')
-                #poster country
-                country = comment.get('country_name', 'NaN')
-                #post time
-                time = comment.get('time', 'NaN')
-                #filename
-                filename_com = comment.get('filename', 'NaN') + comment.get('ext', 'NaN')
-                #urls if present
-                url = find_urls(com)
+        #for each thread on the board
+        for threads in gen_chan():
 
-                writer.writerow({'thread_num': no,
-                                 'post_time': time,
-                                 'id': ids,
-                                 'country': country,
-                                 'com': com,
-                                 'filename': filename,
-                                 'url': url})
+            #thread
+            no = get_threads('no')
+            #now
+            now = get_threads('now')
+            #post time
+            time = get_threads('time')
+            #my time
+            my_time = dt.today()
+            #post text
+            com = handle_com(get_threads('com'))
+            #post name
+            name = get_threads('name')
+            #tripcode
+            trip = get_threads('trip')
+            #id
+            ids = get_threads('id')
+            #capcode?
+            capcode = get_threads('capcode')
+            #filename
+            filename = get_threads('filename')
+            #resto
+            rest = get_threads('resto')
+            #semantic_url
+            semantic_url = get_threads('semantic_url')
+            #replies
+            replies = get_threads('replies')
+            #images
+            images = get_threads('images')
+            #url - need to remake this one probably
+            url = find_urls(com)
+            #country
+            country = get_threads('country_name')
 
-print("Done saving")
+            writer.writerow({'thread_num': no,
+                             'post_time': time,
+                             'id': ids,
+                             'country': country,
+                             'com': com,
+                             'filename': filename,
+                             'url': url})
+
+            #write all thread replies
+            if 'last_replies' in threads:
+                for comment in threads['last_replies']:
+
+                    #comment
+                    com = handle_com(comment.get('com', 'NaN'))
+                    #poster id
+                    ids = comment.get('id', 'NaN')
+                    #poster country
+                    country = comment.get('country_name', 'NaN')
+                    #post time
+                    time = comment.get('time', 'NaN')
+                    #filename
+                    filename_com = comment.get('filename', 'NaN') + comment.get('ext', 'NaN')
+                    #urls if present
+                    url = find_urls(com)
+
+                    writer.writerow({'thread_num': no,
+                                     'post_time': time,
+                                     'id': ids,
+                                     'country': country,
+                                     'com': com,
+                                     'filename': filename,
+                                     'url': url})
+
+    print("Done saving ", date)
+
+def main():
+    """Main function that runs a logging loop
+    """
+    board_name = 'https://a.4cdn.org/pol/catalog.json'
+
+    while True:
+        cycle_collector(board_name)
+        time.sleep(300)
+
+if __name__ == "__main__":
+    main()
+    
